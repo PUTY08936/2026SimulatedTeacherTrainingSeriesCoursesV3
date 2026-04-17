@@ -1,209 +1,283 @@
-import React, { useState } from 'react';
-import { User, Clock, CheckCircle, AlertCircle, MapPin, Loader2, ShieldCheck, X, Send } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 擬真師培報名系統</title>
+    <!-- 引入 Tailwind CSS (美化) 與 Lucide Icons (圖標) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        .modal-active { overflow: hidden; }
+        .transition-all { transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 leading-relaxed">
 
-/**
- * --- 部署說明 ---
- * 請填入您在 Google Apps Script 點選「部署」後取得的網址
- */
-const GOOGLE_SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbx6hj8Fpkn9ZpgDusVvnS-JupmieroJR68QrXAekwZGa6gLqvpcovBGpVj7S8tQUaSb/exec";
+    <!-- 背景橫條 -->
+    <div class="bg-[#004184] h-2 w-full"></div>
 
-const COURSES = [
-  { id: 'course-05', month: '五月份', date: '2026-05-04', time: '10:00-12:00', title: '臨床資源管理與急救分工: TRM理論與實務應用', instructor: '教學研究部 王莨惟 主治醫師', assistant: '護理部RRT 游文英 護理長', limit: 5 },
-  { id: 'course-06', month: '六月份', date: '2026-06-16', time: '10:00-12:00', title: '領導與組織: 從臨床案例中刻意練習管理工具', instructor: '鄭凱元 主任', assistant: '急診醫學部 吳明翰 主治醫師', limit: 5 },
-  { id: 'course-07', month: '七月份', date: '2026-07-14', time: '14:00-16:00', title: '臨床團隊溝通與守望相助: 提升協作效能', instructor: '陳椿宜 主治醫師', assistant: '護理部 崔若昀 護理長', limit: 5 },
-  { id: 'course-08', month: '八月份', date: '2026-08-18', time: '10:00-12:00', title: '特殊外傷案例模擬: 資源管理與團隊合作的挑戰', instructor: '鄭凱元 主任', assistant: '急診醫學部 陳奕融 主治醫師', limit: 5 },
-  { id: 'course-09', month: '九月份', date: '2026-09-22', time: '09:00-11:00', title: '特殊急救案例模擬: 高壓場景中的決策與回饋', instructor: '張鈞傑 主治醫師', assistant: '急診醫學部 李安阜 主治醫師', limit: 5 },
-  { id: 'course-10', month: '十月份', date: '2026-10-07', time: '13:30-15:30', title: '跨院區團隊講師交叉訓練: 資源共享與經驗交流', instructor: '李欣諭 主治醫師', assistant: '急診醫學部 李鴻瑋 主治醫師', limit: 5 }
-];
-
-export default function App() {
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [formData, setFormData] = useState({ name: '', jobTitle: '', hospital: '', unit: '', phone: '', email: '' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [msg, setMsg] = useState({ type: '', text: '' });
-
-  const getStatus = (course) => {
-    const now = new Date();
-    const courseDate = new Date(course.date);
-    const start = new Date(courseDate);
-    start.setMonth(start.getMonth() - 1); // 課程一個月前開放
-    const end = new Date(courseDate);
-    end.setDate(end.getDate() - 3); // 課程 3 天前截止
-    end.setHours(23, 59, 59);
-
-    if (now < start) return 'pending';
-    if (now > end) return 'expired';
-    return 'open';
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setMsg({ type: '', text: '' });
-
-    const timestampStr = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-    const payload = {
-      ...formData,
-      courseId: selectedCourse.id,
-      courseTitle: selectedCourse.title,
-      timestamp: timestampStr
-    };
-
-    try {
-      // 僅發送到 Google Sheets API
-      await fetch(GOOGLE_SHEETS_API_URL, {
-        method: "POST",
-        mode: "no-cors", // 由於 Google Apps Script 的特性，通常使用 no-cors
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      setMsg({ type: 'success', text: '報名資料已成功送出！' });
-      setFormData({ name: '', jobTitle: '', hospital: '', unit: '', phone: '', email: '' });
-      setTimeout(() => { setSelectedCourse(null); setMsg({ type: '', text: '' }); }, 3000);
-    } catch (e) {
-      setMsg({ type: 'error', text: '送出失敗，請檢查網路連線或稍後再試。' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-12 text-slate-900">
-      <div className="bg-[#004184] h-2 w-full"></div>
-      
-      <div className="max-w-4xl mx-auto px-4 pt-8">
-        <header className="bg-white rounded-[2rem] shadow-xl mb-8 border border-slate-100 overflow-hidden">
-          <div className="p-8 md:p-12">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-50">
-                  <img src="LOGO(台大醫院).jpg" alt="Logo" className="h-16 w-auto" onError={(e) => { e.target.src = "https://placehold.co/100x100?text=NTUH"; }} />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-black text-[#004184]">2026 擬真師培報名系統</h1>
-                  <p className="text-sm flex items-center gap-1.5 text-slate-500 font-bold mt-1">
-                    <MapPin size={16} className="text-[#00989d]" /> 
-                    臺大醫院雲林分院 虎尾院區 臨床技能中心
-                  </p>
-                </div>
-              </div>
+    <div class="max-w-4xl mx-auto px-4 pt-8 pb-12">
+        <!-- 頁首：地點與標題 -->
+        <header class="bg-white rounded-[2rem] shadow-xl mb-8 border border-slate-100 overflow-hidden text-center p-8">
+            <h1 class="text-2xl md:text-3xl font-black text-[#004184]">2026 擬真師培報名系統</h1>
+            <div class="mt-4 flex flex-col items-center gap-1 text-slate-500 font-bold">
+                <p class="flex items-center gap-1">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-[#00989d]"></i>
+                    臺大醫院雲林分院 虎尾院區 7樓臨床技能中心
+                </p>
+                <p class="text-xs text-slate-400 font-medium tracking-wide">地址：雲林縣虎尾鎮學府路95號</p>
             </div>
-          </div>
-          <div className="bg-[#00989d] py-3 text-white text-xs font-black text-center tracking-widest">
-             教學研究部、品質管理中心 聯合主辦
-          </div>
+            <div class="mt-4 text-xs font-black text-[#00989d] uppercase tracking-[0.2em] border-t pt-4 border-slate-50">
+                教學研究部、品質管理中心 聯合主辦
+            </div>
         </header>
 
-        <div className="grid gap-6">
-          {COURSES.map((course) => {
-            const status = getStatus(course);
-            
-            return (
-              <div key={course.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="md:flex">
-                  <div className={`p-8 md:w-40 flex flex-col justify-center items-center text-center ${
-                    status === 'open' ? 'bg-[#004184] text-white' : 'bg-slate-100 text-slate-400'
-                  }`}>
-                    <span className="text-xs font-black uppercase tracking-widest">{course.month}</span>
-                    <span className="text-5xl font-black">{course.date.split('-')[2]}</span>
-                    <span className="text-xs font-bold mt-2 flex items-center gap-1"><Clock size={12}/> {course.time}</span>
-                  </div>
-                  
-                  <div className="p-8 md:flex-1 flex flex-col justify-between gap-6">
-                    <div>
-                      <h3 className="text-xl font-black text-slate-800 mb-2">{course.title}</h3>
-                      <div className="text-sm font-bold text-slate-600">
-                        <p>講師：{course.instructor}</p>
-                        <p className="text-xs text-slate-400 mt-1">助教：{course.assistant}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                      <p className="text-[11px] text-slate-400 font-bold italic">
-                        ※ 每梯次限額 {course.limit} 名，額滿為止
-                      </p>
-
-                      {status === 'open' ? (
-                        <button onClick={() => setSelectedCourse(course)} className="px-8 py-3 bg-[#004184] text-white rounded-xl font-black hover:bg-blue-800 transition-all shadow-lg shadow-blue-100">
-                          立即報名
-                        </button>
-                      ) : (
-                        <div className="px-6 py-3 rounded-xl font-black bg-slate-100 text-slate-400 text-xs">
-                          {status === 'pending' ? '尚未開放' : '報名已截止'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <!-- 課程列表容器 -->
+        <div id="course-list" class="grid gap-6">
+            <!-- 課程卡片將由 JavaScript 自動生成 -->
+            <div class="p-12 text-center text-slate-400 font-bold animate-pulse">載入課程資訊中...</div>
         </div>
 
-        <footer className="mt-12 text-center text-slate-400 p-8 border-t border-slate-200">
-          <p className="text-xs font-black tracking-widest uppercase">© 2026 臺大醫院雲林分院 教學研究部</p>
-          <div className="mt-4 flex justify-center gap-4 text-xs font-bold">
-            <p>諮詢：李貞汝 (0911-358-973)</p>
-            <p>吳采瑩 (分機 571403)</p>
-          </div>
-        </footer>
-      </div>
+        <!-- 頁尾：聯絡資訊 -->
+        <div class="mt-12 bg-white/60 rounded-[2rem] p-8 border border-slate-200 text-slate-600">
+            <h4 class="text-center font-black text-slate-800 mb-6 flex items-center justify-center gap-2">
+                <i data-lucide="info" class="w-5 h-5 text-[#00989d]"></i>
+                報名諮詢與聯絡資訊
+            </h4>
+            <div class="grid md:grid-cols-2 gap-6 text-sm font-bold">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                    <p class="text-slate-400 text-[10px] mb-1 uppercase tracking-widest">主責承辦人</p>
+                    <p class="text-lg text-slate-800">李貞汝 小姐</p>
+                    <p class="mt-2 text-[#004184] flex items-center gap-2">
+                        <i data-lucide="phone" class="w-4 h-4"></i>
+                        0911-358-973
+                    </p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                    <p class="text-slate-400 text-[10px] mb-1 uppercase tracking-widest">共同承辦人</p>
+                    <p class="text-lg text-slate-800">吳采瑩 小姐</p>
+                    <p class="mt-2 text-[#004184] flex items-center gap-2">
+                        <i data-lucide="phone-call" class="w-4 h-4"></i>
+                        05-6330002 #571403
+                    </p>
+                </div>
+            </div>
+        </div>
 
-      {selectedCourse && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[100] overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md my-8 overflow-hidden shadow-2xl">
-            <div className="bg-[#004184] p-8 text-white relative">
-              <button onClick={() => setSelectedCourse(null)} className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-full"><X size={20}/></button>
-              <h2 className="text-xl font-black leading-tight pr-8">{selectedCourse.title}</h2>
-              <p className="text-xs mt-2 opacity-80 font-bold tracking-widest">請填寫報名資訊</p>
+        <footer class="mt-8 text-center text-slate-400 text-[10px] font-black tracking-widest uppercase py-4">
+            © 2026 臺大醫院雲林分院 教學研究部
+        </footer>
+    </div>
+
+    <!-- 報名彈窗 (預設隱藏) -->
+    <div id="booking-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[100] hidden overflow-y-auto">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-md my-8 overflow-hidden shadow-2xl relative">
+            <div class="bg-[#004184] p-8 text-white">
+                <button onclick="closeModal()" class="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-full transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+                <h2 id="modal-title" class="text-xl font-black leading-tight pr-8">課程標題</h2>
+                <p class="text-[10px] mt-2 opacity-80 font-black tracking-[0.2em] uppercase">請填寫報名資訊</p>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-4">
-              {msg.text && (
-                <div className={`p-4 rounded-2xl flex gap-3 text-sm font-bold ${msg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {msg.type === 'success' ? <CheckCircle size={20}/> : <AlertCircle size={20}/>} {msg.text}
+            <form id="registration-form" class="p-8 space-y-4">
+                <div id="form-msg" class="hidden p-4 rounded-xl font-bold text-sm text-center"></div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 ml-1">姓名</label>
+                        <input type="text" id="field-name" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-[#004184] outline-none font-bold transition-all">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-slate-400 ml-1">職稱</label>
+                        <input type="text" id="field-job" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-[#004184] outline-none font-bold transition-all">
+                    </div>
                 </div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-black text-slate-400">姓名</label>
-                  <input required className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 ml-1">服務醫院</label>
+                    <input type="text" id="field-hospital" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-[#004184] outline-none font-bold transition-all">
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-black text-slate-400">職稱</label>
-                  <input required className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.jobTitle} onChange={e => setFormData({...formData, jobTitle: e.target.value})} />
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 ml-1">所屬單位</label>
+                    <input type="text" id="field-unit" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-[#004184] outline-none font-bold transition-all">
                 </div>
-              </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400">服務醫院</label>
-                <input required className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.hospital} onChange={e => setFormData({...formData, hospital: e.target.value})} />
-              </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 ml-1">聯絡電話</label>
+                    <input type="tel" id="field-phone" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-[#004184] outline-none font-bold transition-all">
+                </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400">所屬單位</label>
-                <input required className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} />
-              </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 ml-1">電子郵件</label>
+                    <input type="email" id="field-email" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-[#004184] outline-none font-bold transition-all">
+                </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400">聯絡電話</label>
-                <input required type="tel" className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400">電子郵件</label>
-                <input required type="email" className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-              </div>
-
-              <button disabled={isSubmitting || msg.type === 'success'} className="w-full py-4 bg-[#00989d] text-white rounded-2xl font-black hover:bg-[#00b0b5] transition-all flex justify-center items-center gap-2 shadow-lg shadow-teal-100 mt-4">
-                {isSubmitting ? <Loader2 className="animate-spin" /> : <><Send size={18}/> 送出報名</>}
-              </button>
+                <button type="submit" id="submit-btn" class="w-full py-4 bg-[#00989d] text-white rounded-2xl font-black hover:bg-[#00b0b5] transition-all flex justify-center items-center gap-2 shadow-lg shadow-teal-50 mt-4">
+                    <i data-lucide="send" class="w-4 h-4"></i> 確認送出報名
+                </button>
             </form>
-          </div>
         </div>
-      )}
     </div>
-  );
-}
+
+    <script>
+        // --- 設定區 ---
+        const API_URL = "https://script.google.com/macros/s/AKfycbx6hj8Fpkn9ZpgDusVvnS-JupmieroJR68QrXAekwZGa6gLqvpcovBGpVj7S8tQUaSb/exec";
+        
+        const COURSES = [
+            { id: 'course-05', month: '五月份', date: '2026-05-04', time: '10:00-12:00', title: '臨床資源管理與急救分工: TRM理論與實務應用', limit: 5 },
+            { id: 'course-06', month: '六月份', date: '2026-06-16', time: '10:00-12:00', title: '領導與組織: 從臨床案例中刻意練習管理工具', limit: 5 },
+            { id: 'course-07', month: '七月份', date: '2026-07-14', time: '14:00-16:00', title: '臨床團隊溝通與守望相助: 提升協作效能', limit: 5 },
+            { id: 'course-08', month: '八月份', date: '2026-08-18', time: '10:00-12:00', title: '特殊外傷案例模擬: 資源管理與團隊合作的挑戰', limit: 5 },
+            { id: 'course-09', month: '九月份', date: '2026-09-22', time: '09:00-11:00', title: '特殊急救案例模擬: 高壓場景中的決策與回饋', limit: 5 },
+            { id: 'course-10', month: '十月份', date: '2026-10-07', time: '13:30-15:30', title: '跨院區團隊講師交叉訓練: 資源共享與經驗交流', limit: 5 }
+        ];
+
+        let regCounts = {};
+        let activeCourse = null;
+
+        // --- 初始化功能 ---
+        async function init() {
+            lucide.createIcons();
+            await fetchCounts();
+            renderCourses();
+        }
+
+        // 從試算表取得報名人數
+        async function fetchCounts() {
+            try {
+                const res = await fetch(`${API_URL}?t=${Date.now()}`);
+                regCounts = await res.json();
+            } catch (err) {
+                console.error("無法連線試算表 API", err);
+            }
+        }
+
+        // 判斷狀態
+        function getStatus(course) {
+            const now = new Date();
+            const courseDate = new Date(course.date);
+            const start = new Date(courseDate);
+            start.setMonth(start.getMonth() - 1);
+            const end = new Date(courseDate);
+            end.setDate(end.getDate() - 3);
+
+            const current = regCounts[course.id] || 0;
+
+            if (now < start) return { type: 'pending', label: '尚未開放' };
+            if (now > end) return { type: 'expired', label: '報名截止' };
+            if (current >= course.limit) return { type: 'full', label: '報名額滿' };
+            return { type: 'open', label: '立即報名' };
+        }
+
+        // 生成畫面
+        function renderCourses() {
+            const list = document.getElementById('course-list');
+            list.innerHTML = COURSES.map(course => {
+                const status = getStatus(course);
+                const current = regCounts[course.id] || 0;
+                const percent = Math.min((current / course.limit) * 100, 100);
+                const isOpen = status.type === 'open';
+
+                return `
+                    <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden md:flex transition-all hover:shadow-md">
+                        <div class="p-8 md:w-40 flex flex-col justify-center items-center text-center ${isOpen ? 'bg-[#004184] text-white' : 'bg-slate-100 text-slate-400'}">
+                            <span class="text-[10px] font-black uppercase tracking-widest">${course.month}</span>
+                            <span class="text-5xl font-black">${course.date.split('-')[2]}</span>
+                            <span class="text-[10px] font-bold mt-2 flex items-center gap-1 opacity-80"><i data-lucide="clock" class="w-3 h-3"></i> ${course.time}</span>
+                        </div>
+                        <div class="p-8 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-xl font-black text-slate-800 leading-tight">${course.title}</h3>
+                                <div class="mt-4 flex items-center gap-4">
+                                    <div class="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                                        <div class="h-full bg-[#00989d] transition-all duration-1000" style="width: ${percent}%"></div>
+                                    </div>
+                                    <span class="text-xs font-black text-slate-500 w-16 text-right">${current} / ${course.limit}</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-6">
+                                ${isOpen 
+                                    ? `<button onclick='openModal(${JSON.stringify(course)})' class="px-8 py-3 bg-[#004184] text-white rounded-xl font-black shadow-lg shadow-blue-100 hover:scale-105 transition-all">立即報名</button>`
+                                    : `<div class="px-6 py-3 rounded-xl font-black bg-slate-100 text-slate-400 text-xs">${status.label}</div>`
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // --- 彈窗與表單邏輯 ---
+        function openModal(course) {
+            activeCourse = course;
+            document.getElementById('modal-title').innerText = course.title;
+            document.getElementById('booking-modal').classList.remove('hidden');
+            document.body.classList.add('modal-active');
+        }
+
+        function closeModal() {
+            document.getElementById('booking-modal').classList.add('hidden');
+            document.body.classList.remove('modal-active');
+            document.getElementById('registration-form').reset();
+            const msg = document.getElementById('form-msg');
+            msg.className = "hidden";
+            msg.innerHTML = "";
+        }
+
+        document.getElementById('registration-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const msg = document.getElementById('form-msg');
+            
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 處理中...`;
+            lucide.createIcons();
+
+            const payload = {
+                courseId: activeCourse.id,
+                courseTitle: activeCourse.title,
+                name: document.getElementById('field-name').value,
+                jobTitle: document.getElementById('field-job').value,
+                hospital: document.getElementById('field-hospital').value,
+                unit: document.getElementById('field-unit').value,
+                phone: document.getElementById('field-phone').value,
+                email: document.getElementById('field-email').value,
+                timestamp: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
+            };
+
+            try {
+                // 使用 no-cors 模式發送到 Google Apps Script
+                await fetch(API_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    body: JSON.stringify(payload)
+                });
+
+                msg.className = "p-4 rounded-xl font-bold text-sm text-center bg-green-50 text-green-700 mb-4 block";
+                msg.innerHTML = "報名成功！資料已送往試算表。";
+                
+                // 本地模擬更新人數
+                regCounts[activeCourse.id] = (regCounts[activeCourse.id] || 0) + 1;
+                renderCourses();
+
+                setTimeout(closeModal, 2500);
+            } catch (err) {
+                msg.className = "p-4 rounded-xl font-bold text-sm text-center bg-red-50 text-red-700 mb-4 block";
+                msg.innerHTML = "連線失敗，請檢查網路。";
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="send" class="w-4 h-4"></i> 確認送出報名`;
+            }
+            lucide.createIcons();
+        });
+
+        // 啟動
+        window.onload = init;
+    </script>
+</body>
+</html>
