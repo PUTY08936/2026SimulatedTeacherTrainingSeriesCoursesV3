@@ -4,20 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2026 擬真師培報名系統</title>
-    <!-- 使用 Tailwind CSS 進行樣式設計 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 載入 React 核心庫 -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- 載入 Babel 用於解析 JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- 載入 Lucide 圖標 -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body { font-family: 'Noto Sans TC', sans-serif; }
-        .animate-spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -26,7 +20,6 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // 請在此填入您的 Google Apps Script 網址
         const GOOGLE_SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbx6hj8Fpkn9ZpgDusVvnS-JupmieroJR68QrXAekwZGa6gLqvpcovBGpVj7S8tQUaSb/exec";
 
         const COURSES = [
@@ -43,6 +36,15 @@
             const [formData, setFormData] = useState({ name: '', jobTitle: '', hospital: '', unit: '', phone: '', email: '' });
             const [isSubmitting, setIsSubmitting] = useState(false);
             const [msg, setMsg] = useState({ type: '', text: '' });
+            const [regCounts, setRegCounts] = useState({}); // 儲存各課報名人數
+
+            // 載入時讀取試算表中的報名統計
+            useEffect(() => {
+                fetch(GOOGLE_SHEETS_API_URL)
+                    .then(res => res.json())
+                    .then(data => setRegCounts(data))
+                    .catch(err => console.error("無法讀取名額:", err));
+            }, []);
 
             const getStatus = (course) => {
                 const now = new Date();
@@ -51,18 +53,17 @@
                 start.setMonth(start.getMonth() - 1);
                 const end = new Date(courseDate);
                 end.setDate(end.getDate() - 3);
-                end.setHours(23, 59, 59);
 
                 if (now < start) return 'pending';
                 if (now > end) return 'expired';
+                if ((regCounts[course.id] || 0) >= course.limit) return 'full';
                 return 'open';
             };
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setIsSubmitting(true);
-                setMsg({ type: '', text: '' });
-
+                
                 const payload = {
                     ...formData,
                     courseId: selectedCourse.id,
@@ -74,137 +75,75 @@
                     await fetch(GOOGLE_SHEETS_API_URL, {
                         method: "POST",
                         mode: "no-cors",
-                        headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(payload)
                     });
 
                     setMsg({ type: 'success', text: '報名資料已成功送出！' });
-                    setFormData({ name: '', jobTitle: '', hospital: '', unit: '', phone: '', email: '' });
+                    // 更新本地計數預防重複點擊
+                    setRegCounts(prev => ({ ...prev, [selectedCourse.id]: (prev[selectedCourse.id] || 0) + 1 }));
                     setTimeout(() => { setSelectedCourse(null); setMsg({ type: '', text: '' }); }, 3000);
                 } catch (e) {
-                    setMsg({ type: 'error', text: '送出失敗，請檢查網路連線。' });
+                    setMsg({ type: 'error', text: '送出失敗。' });
                 } finally {
                     setIsSubmitting(false);
                 }
             };
 
             return (
-                <div className="min-h-screen pb-12">
+                <div className="min-h-screen pb-12 bg-slate-50">
                     <div className="bg-[#004184] h-2 w-full"></div>
-                    
                     <div className="max-w-4xl mx-auto px-4 pt-8">
-                        <header className="bg-white rounded-[2rem] shadow-xl mb-8 border border-slate-100 overflow-hidden">
-                            <div className="p-8 md:p-12">
-                                <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-50">
-                                            <img src="LOGO(台大醫院).jpg" alt="Logo" className="h-16 w-auto" 
-                                                onError={(e) => { e.target.src = "https://placehold.co/200x80?text=NTUH+LOGO"; }} />
-                                        </div>
-                                        <div>
-                                            <h1 className="text-2xl md:text-3xl font-black text-[#004184]">2026 擬真師培報名系統</h1>
-                                            <p className="text-sm flex items-center gap-1.5 text-slate-500 font-bold mt-1">
-                                                <i data-lucide="map-pin" class="w-4 h-4 text-[#00989d]"></i>
-                                                臺大醫院雲林分院 虎尾院區 臨床技能中心
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-[#00989d] py-3 text-white text-xs font-black text-center tracking-widest">
-                                教學研究部、品質管理中心 聯合主辦
-                            </div>
+                        <header className="bg-white rounded-[2rem] shadow-xl mb-8 border border-slate-100 overflow-hidden text-center p-8">
+                            <h1 className="text-2xl md:text-3xl font-black text-[#004184]">2026 擬真師培報名系統</h1>
+                            <p className="text-slate-500 font-bold mt-2">名額有限，額滿即截止報名</p>
                         </header>
 
                         <div className="grid gap-6">
                             {COURSES.map((course) => {
                                 const status = getStatus(course);
+                                const currentReg = regCounts[course.id] || 0;
                                 return (
-                                    <div key={course.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow">
-                                        <div className="md:flex">
-                                            <div className={`p-8 md:w-40 flex flex-col justify-center items-center text-center ${
-                                                status === 'open' ? 'bg-[#004184] text-white' : 'bg-slate-100 text-slate-400'
-                                            }`}>
-                                                <span className="text-xs font-black uppercase tracking-widest">{course.month}</span>
-                                                <span className="text-5xl font-black">{course.date.split('-')[2]}</span>
-                                                <span className="text-xs font-bold mt-2">{course.time}</span>
+                                    <div key={course.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden md:flex">
+                                        <div className={`p-8 md:w-40 flex flex-col justify-center items-center text-center ${status === 'open' ? 'bg-[#004184] text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                            <span className="text-xs font-black uppercase tracking-widest">{course.month}</span>
+                                            <span className="text-5xl font-black">{course.date.split('-')[2]}</span>
+                                        </div>
+                                        <div className="p-8 flex-1 flex flex-col justify-between">
+                                            <div>
+                                                <h3 className="text-xl font-black text-slate-800">{course.title}</h3>
+                                                <p className="text-sm text-slate-500 font-bold mt-2">名額狀態：{currentReg} / {course.limit}</p>
                                             </div>
-                                            
-                                            <div className="p-8 md:flex-1 flex flex-col justify-between gap-6">
-                                                <div>
-                                                    <h3 className="text-xl font-black text-slate-800 mb-2">{course.title}</h3>
-                                                    <div className="text-sm font-bold text-slate-600">
-                                                        <p>講師：{course.instructor}</p>
-                                                        <p className="text-xs text-slate-400 mt-1">助教：{course.assistant}</p>
+                                            <div className="flex justify-end mt-4">
+                                                {status === 'open' ? (
+                                                    <button onClick={() => setSelectedCourse(course)} className="px-8 py-3 bg-[#004184] text-white rounded-xl font-black">立即報名</button>
+                                                ) : (
+                                                    <div className="px-6 py-3 rounded-xl font-black bg-slate-100 text-slate-400">
+                                                        {status === 'full' ? '已額滿' : (status === 'pending' ? '尚未開放' : '報名截止')}
                                                     </div>
-                                                </div>
-
-                                                <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                                                    <p className="text-[11px] text-slate-400 font-bold italic">※ 每梯次限額 {course.limit} 名</p>
-                                                    {status === 'open' ? (
-                                                        <button onClick={() => setSelectedCourse(course)} className="px-8 py-3 bg-[#004184] text-white rounded-xl font-black hover:bg-blue-800 transition-all shadow-lg shadow-blue-100">
-                                                            立即報名
-                                                        </button>
-                                                    ) : (
-                                                        <div className="px-6 py-3 rounded-xl font-black bg-slate-100 text-slate-400 text-xs">
-                                                            {status === 'pending' ? '尚未開放' : '報名已截止'}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
-
-                        <footer className="mt-12 text-center text-slate-400 p-8 border-t border-slate-200">
-                            <p className="text-xs font-black tracking-widest uppercase">© 2026 臺大醫院雲林分院 教學研究部</p>
-                        </footer>
                     </div>
 
                     {selectedCourse && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[100] overflow-y-auto">
-                            <div className="bg-white rounded-[2.5rem] w-full max-w-md my-8 overflow-hidden shadow-2xl">
-                                <div className="bg-[#004184] p-8 text-white relative">
-                                    <button onClick={() => setSelectedCourse(null)} className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-full">✕</button>
-                                    <h2 className="text-xl font-black leading-tight pr-8">{selectedCourse.title}</h2>
-                                </div>
-                                
-                                <form onSubmit={handleSubmit} className="p-8 space-y-4">
-                                    {msg.text && (
-                                        <div className={`p-4 rounded-2xl flex gap-3 text-sm font-bold ${msg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                                            {msg.text}
-                                        </div>
-                                    )}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-black text-slate-400">姓名</label>
-                                            <input required className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-black text-slate-400">職稱</label>
-                                            <input required className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.jobTitle} onChange={e => setFormData({...formData, jobTitle: e.target.value})} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-black text-slate-400">服務醫院</label>
-                                        <input required className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.hospital} onChange={e => setFormData({...formData, hospital: e.target.value})} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-black text-slate-400">所屬單位</label>
-                                        <input required className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-black text-slate-400">聯絡電話</label>
-                                        <input required type="tel" className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-black text-slate-400">電子郵件</label>
-                                        <input required type="email" className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:border-[#004184] font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                                    </div>
-                                    <button disabled={isSubmitting || msg.type === 'success'} className="w-full py-4 bg-[#00989d] text-white rounded-2xl font-black hover:bg-[#00b0b5] transition-all flex justify-center items-center gap-2 shadow-lg shadow-teal-100 mt-4">
-                                        {isSubmitting ? "傳送中..." : "送出報名"}
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[100]">
+                            <div className="bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl relative">
+                                <button onClick={() => setSelectedCourse(null)} className="absolute top-6 right-6 font-bold text-slate-400">✕</button>
+                                <h2 className="text-xl font-black mb-6">{selectedCourse.title}</h2>
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    {msg.text && <div className={`p-4 rounded-xl font-bold text-center ${msg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{msg.text}</div>}
+                                    <input required placeholder="姓名" className="w-full px-4 py-3 bg-slate-50 border rounded-xl font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                    <input required placeholder="職稱" className="w-full px-4 py-3 bg-slate-50 border rounded-xl font-bold" value={formData.jobTitle} onChange={e => setFormData({...formData, jobTitle: e.target.value})} />
+                                    <input required placeholder="服務醫院" className="w-full px-4 py-3 bg-slate-50 border rounded-xl font-bold" value={formData.hospital} onChange={e => setFormData({...formData, hospital: e.target.value})} />
+                                    <input required placeholder="所屬單位" className="w-full px-4 py-3 bg-slate-50 border rounded-xl font-bold" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} />
+                                    <input required placeholder="聯絡電話" className="w-full px-4 py-3 bg-slate-50 border rounded-xl font-bold" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                                    <input required type="email" placeholder="Email" className="w-full px-4 py-3 bg-slate-50 border rounded-xl font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                                    <button disabled={isSubmitting || msg.type === 'success'} className="w-full py-4 bg-[#00989d] text-white rounded-2xl font-black">
+                                        {isSubmitting ? "處理中..." : "確認送出"}
                                     </button>
                                 </form>
                             </div>
@@ -216,9 +155,6 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-        
-        // 初始化 Lucide 圖標
-        setTimeout(() => lucide.createIcons(), 500);
     </script>
 </body>
 </html>
